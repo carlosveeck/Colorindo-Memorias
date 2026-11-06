@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Colorindo Memórias</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Biblioteca para gerar o PDF no próprio navegador -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+  <!-- ================= TELA 1: INÍCIO ================= -->
+  <section id="tela-inicio" class="tela ativa" aria-label="Início">
+    <div class="inicio-conteudo">
+      <div class="logo" aria-hidden="true">🖍️📖</div>
+      <h1>Colorindo Memórias</h1>
+      <p class="subtitulo">Conte uma lembrança especial.<br />Ela vira uma página para você colorir.</p>
+      <button id="btn-comecar" class="botao botao-principal">
+        <span aria-hidden="true">💬</span> Contar minha história
+      </button>
+      <p id="aviso-demo" class="aviso-demo" hidden>Modo demonstração (sem chave da IA)</p>
+    </div>
+  </section>
+
+  <!-- ================= TELA 2: CONVERSA ================= -->
+  <section id="tela-conversa" class="tela" aria-label="Conversa">
+    <header class="topo">
+      <h2>Conte sua história</h2>
+    </header>
+
+    <div id="mensagens" class="mensagens" aria-live="polite"></div>
+
+    <div id="pensando" class="pensando" hidden>
+      <span class="pontos"><i></i><i></i><i></i></span> Pensando…
+    </div>
+
+    <form id="form-mensagem" class="area-escrever">
+      <label for="campo-texto" class="sr-only">Escreva sua resposta</label>
+      <textarea id="campo-texto" rows="2" placeholder="Escreva aqui…" autocomplete="off"></textarea>
+      <button type="submit" id="btn-enviar" class="botao botao-enviar">
+        <span aria-hidden="true">➤</span> Enviar
+      </button>
+    </form>
+
+    <div id="area-criar" class="area-criar" hidden>
+      <button id="btn-criar" class="botao botao-principal">
+        <span aria-hidden="true">📖</span> Criar meu livro
+      </button>
+    </div>
+  </section>
+
+  <!-- ================= TELA 3: LIVRO ================= -->
+  <section id="tela-livro" class="tela" aria-label="Seu livro">
+
+    <!-- Estado: gerando -->
+    <div id="livro-carregando" class="carregando">
+      <div class="pincel" aria-hidden="true">🎨</div>
+      <p id="progresso-titulo" class="carregando-titulo">Organizando sua história…</p>
+      <p class="carregando-sub">Cada página leva cerca de um minuto. Pode aguardar com calma.</p>
+      <div class="barra"><div id="barra" class="barra-preenchimento indeterminada"></div></div>
+    </div>
+
+    <!-- Estado: erro -->
+    <div id="livro-erro" class="carregando" hidden>
+      <div class="pincel" aria-hidden="true">😔</div>
+      <p class="carregando-titulo">Não conseguimos criar o livro agora.</p>
+      <p class="carregando-sub">Sua história continua guardada. Vamos tentar de novo?</p>
+      <button id="btn-tentar" class="botao botao-principal">
+        <span aria-hidden="true">🔄</span> Tentar de novo
+      </button>
+    </div>
+
+    <!-- Estado: pronto -->
+    <div id="livro-pronto" class="livro-pronto" hidden>
+      <h2 id="livro-titulo" class="livro-titulo"></h2>
+      <!-- As páginas (desenho + texto) são montadas pelo app.js -->
+      <div id="livro-paginas"></div>
+      <div class="acoes-finais">
+        <button id="btn-baixar" class="botao botao-principal">
+          <span aria-hidden="true">⬇️</span> Baixar meu livro
+        </button>
+        <button id="btn-recomecar" class="botao botao-secundario">
+          <span aria-hidden="true">🏠</span> Contar outra história
+        </button>
+      </div>
+    </div>
+  </section>
+
+</body>
+</html>

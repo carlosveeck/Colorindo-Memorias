@@ -1,0 +1,13 @@
+{
+  "name": "colorindo-memorias",
+  "version": "0.1.0",
+  "description": "v0 — Colorindo Memórias: conte uma lembrança e receba um livrinho para colorir",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
