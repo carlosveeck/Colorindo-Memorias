@@ -63,8 +63,19 @@ colorindo-memorias/
   troque `OPENAI_IMAGE_MODEL=dall-e-3` no `.env`.
 - **Imagem lenta?** Use `OPENAI_IMAGE_QUALITY=low` no `.env`.
 
-## Próximo passo: voz (GPT Realtime)
+## Conversa por voz (GPT-Live) — v1
 
-A tela de conversa só depende de "a pessoa fala → a IA responde → guardar no histórico
-`estado.mensagens`". Ao trocar para voz, basta preencher esse mesmo histórico com as
-transcrições da Realtime API; a geração do livro (`/api/livro`) continua igual.
+```
+Navegador ──(oferta WebRTC)──▶ /api/voz/sessao ──(chave)──▶ POST /v1/live/sessions
+Navegador ◀═══ áudio + eventos (canal "oai-events") ═══▶ OpenAI GPT-Live
+```
+
+- O `gpt-live-1` (`OPENAI_REALTIME_MODEL`) conduz a conversa falada com as instruções de `SISTEMA_VOZ`.
+- Trabalho "delegado" vai para o modelo de texto (`OPENAI_CHAT_MODEL`).
+- As transcrições (`session.input_transcript.delta` / `session.output_transcript.delta`) viram falas
+  em `estado.mensagens`, o mesmo histórico do modo texto. Roteiro, ilustrações e PDF não mudam.
+- O botão "Criar meu livro" aparece quando a IA fala a frase "Criar meu livro" (ou após 10 respostas).
+- Se o microfone for negado ou a ligação falhar, a tela volta sozinha para o modo texto.
+- Voz opcional: `OPENAI_LIVE_VOICE=marin` no `.env` (vazio = voz padrão).
+- Microfone só funciona em `http://localhost` ou HTTPS.
+- Custo aproximado da camada de voz: US$ 0,05 por minuto (mais o modelo de texto, quando delegado).

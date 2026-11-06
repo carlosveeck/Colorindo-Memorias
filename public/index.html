@@ -18,11 +18,87 @@
     <div class="inicio-conteudo">
       <div class="logo" aria-hidden="true">🖍️📖</div>
       <h1>Colorindo Memórias</h1>
-      <p class="subtitulo">Conte uma lembrança especial.<br />Ela vira uma página para você colorir.</p>
-      <button id="btn-comecar" class="botao botao-principal">
-        <span aria-hidden="true">💬</span> Contar minha história
-      </button>
+      <p class="subtitulo">Conte uma lembrança especial.<br />Ela vira um livrinho para você colorir.</p>
+      <div class="botoes-inicio">
+        <button id="btn-comecar" class="botao botao-principal">
+          <span aria-hidden="true">💬</span> Contar minha história
+        </button>
+        <button id="btn-instrucoes" class="botao botao-secundario">
+          <span aria-hidden="true">❓</span> Instruções
+        </button>
+      </div>
       <p id="aviso-demo" class="aviso-demo" hidden>Modo demonstração (sem chave da IA)</p>
+    </div>
+  </section>
+
+  <!-- ================= INSTRUÇÕES ================= -->
+  <section id="tela-instrucoes" class="tela" aria-label="Instruções">
+    <div class="instrucoes">
+      <h2 class="instrucoes-titulo">Como funciona</h2>
+      <p class="instrucoes-intro">
+        Você conta uma lembrança especial conversando com uma assistente.
+        No final, ela vira um livrinho com desenhos para você colorir.
+      </p>
+
+      <ol class="passos">
+        <li class="passo">
+          <span class="passo-icone" aria-hidden="true">💬</span>
+          <div>
+            <h3>Toque em "Contar minha história"</h3>
+            <p>O aparelho vai pedir para usar o microfone. Toque em <strong>"Permitir"</strong>.</p>
+          </div>
+        </li>
+        <li class="passo">
+          <span class="passo-icone" aria-hidden="true">🎙️</span>
+          <div>
+            <h3>Converse com calma</h3>
+            <p>
+              A assistente vai escutar você e fazer perguntas sobre a lembrança:
+              onde foi, quem estava junto e como você se sentiu.
+              Fale normalmente, como numa ligação. Tudo aparece escrito na tela.
+            </p>
+          </div>
+        </li>
+        <li class="passo">
+          <span class="passo-icone" aria-hidden="true">📖</span>
+          <div>
+            <h3>Toque em "Criar meu livro"</h3>
+            <p>Quando a história estiver completa, a assistente vai avisar e o botão vai aparecer.</p>
+          </div>
+        </li>
+        <li class="passo">
+          <span class="passo-icone" aria-hidden="true">🎨</span>
+          <div>
+            <h3>Aguarde os desenhos</h3>
+            <p>Em poucos minutos, sua história é escrita e ganha de 1 a 3 desenhos para colorir.</p>
+          </div>
+        </li>
+        <li class="passo">
+          <span class="passo-icone" aria-hidden="true">⬇️</span>
+          <div>
+            <h3>Toque em "Baixar meu livro"</h3>
+            <p>O livro fica guardado no aparelho. Você pode imprimir e colorir quando quiser.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="dicas">
+        <h3>💡 Dicas</h3>
+        <ul>
+          <li>Prefira um lugar silencioso.</li>
+          <li>Com fone de ouvido, a conversa fica ainda melhor.</li>
+          <li>Se o microfone não funcionar, você pode escrever a sua história.</li>
+        </ul>
+      </div>
+
+      <div class="botoes-inicio">
+        <button id="btn-comecar-instrucoes" class="botao botao-principal">
+          <span aria-hidden="true">💬</span> Contar minha história
+        </button>
+        <button id="btn-voltar-instrucoes" class="botao botao-secundario">
+          <span aria-hidden="true">⬅️</span> Voltar
+        </button>
+      </div>
     </div>
   </section>
 
@@ -34,11 +110,18 @@
 
     <div id="mensagens" class="mensagens" aria-live="polite"></div>
 
+    <!-- Modo voz: indicador grande do que está acontecendo -->
+    <div id="painel-voz" class="painel-voz" hidden aria-live="polite">
+      <div id="voz-circulo" class="voz-circulo conectando" aria-hidden="true">🎙️</div>
+      <p id="voz-status" class="voz-status">Conectando…</p>
+    </div>
+
     <div id="pensando" class="pensando" hidden>
       <span class="pontos"><i></i><i></i><i></i></span> Pensando…
     </div>
 
-    <form id="form-mensagem" class="area-escrever">
+    <!-- Modo texto: usado no modo demonstração ou se a voz falhar -->
+    <form id="form-mensagem" class="area-escrever" hidden>
       <label for="campo-texto" class="sr-only">Escreva sua resposta</label>
       <textarea id="campo-texto" rows="2" placeholder="Escreva aqui…" autocomplete="off"></textarea>
       <button type="submit" id="btn-enviar" class="botao botao-enviar">
