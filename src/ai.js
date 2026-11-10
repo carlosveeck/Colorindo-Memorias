@@ -3,7 +3,9 @@
 //  Quando trocar a conversa por texto pelo GPT Realtime (voz),
 //  só responderConversa() muda; o roteiro e as ilustrações continuam iguais.
 // ============================================================
-import { SISTEMA_CONVERSA, SISTEMA_ROTEIRO, MARCA_PRONTO, promptIlustracao } from './prompts.js';
+import {
+  SISTEMA_CONVERSA, SISTEMA_ROTEIRO, MARCA_PRONTO, SISTEMA_VOZ, SISTEMA_VOZ_BACKEND, promptIlustracao,
+} from './prompts.js';
 import { mockResposta, mockRoteiro, mockIlustracao } from './mock.js';
 
 // Lê a configuração na hora do uso (garante que o .env já foi carregado).
@@ -12,6 +14,8 @@ function config() {
     key: (process.env.OPENAI_API_KEY || '').trim(),
     baseUrl: (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
     chatModel: process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini',
+    liveModel: process.env.OPENAI_REALTIME_MODEL || 'gpt-live-1',
+    liveVoice: (process.env.OPENAI_LIVE_VOICE || '').trim(), // vazio = voz padrão da OpenAI
     imageModel: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1',
     imageQuality: process.env.OPENAI_IMAGE_QUALITY || 'medium',
   };
@@ -72,6 +76,56 @@ export async function responderConversa(mensagens) {
   const pronto = bruto.includes(MARCA_PRONTO);
   const resposta = bruto.split(MARCA_PRONTO).join('').trim();
   return { resposta, pronto };
+}
+
+// ============================================================
+// 1b) CONVERSA POR VOZ (GPT-Live via WebRTC)
+//     O navegador manda a "oferta" WebRTC (SDP); o servidor troca pela
+//     "resposta" usando a chave. A chave NUNCA vai para o navegador.
+//     Depois disso, áudio e eventos fluem direto navegador ⇄ OpenAI.
+// ============================================================
+export async function criarSessaoVoz(sdpOferta) {
+  if (modoDemo()) throw new Error('Voz indisponível no modo demonstração.');
+  if (typeof sdpOferta !== 'string' || !sdpOferta.startsWith('v=')) {
+    throw new Error('Oferta de conexão inválida.');
+  }
+
+  const { liveModel, liveVoice, chatModel } = config();
+  const session = {
+    model: liveModel,
+    instructions: SISTEMA_VOZ,
+    // O GPT-Live só ouve e fala; o "raciocínio" fica com um modelo de texto.
+    delegation: {
+      type: 'responses',
+      responses: { model: chatModel, instructions: SISTEMA_VOZ_BACKEND },
+    },
+  };
+  if (liveVoice) session.audio = { output: { voice: liveVoice } };
+
+  // "Cutucada" inicial: faz a IA falar a apresentação logo ao conectar,
+  // em vez de esperar a pessoa (que está com o microfone desligado).
+  const comCutucada = {
+    ...session,
+    input: [{
+      type: 'message',
+      role: 'user',
+      content: [{ type: 'input_text', text: '(A pessoa acabou de abrir a conversa. Faça agora a sua primeira fala.)' }],
+    }],
+  };
+
+  let dados;
+  try {
+    dados = await chamarOpenAI('/live/sessions', { session: comCutucada, transport: { type: 'webrtc', sdp: sdpOferta } }, 20_000);
+  } catch (erro) {
+    // Se a API recusar o campo "input", tenta de novo sem ele (a instrução já pede a apresentação)
+    if (!/input/i.test(erro.message)) throw erro;
+    console.warn('[voz] Sessão sem cutucada inicial:', erro.message);
+    dados = await chamarOpenAI('/live/sessions', { session, transport: { type: 'webrtc', sdp: sdpOferta } }, 20_000);
+  }
+
+  const sdp = dados?.transport?.sdp;
+  if (!sdp) throw new Error('A OpenAI não devolveu a resposta da conexão de voz.');
+  return { id: dados.session?.id, sdp };
 }
 
 // ============================================================

@@ -10,6 +10,9 @@ const RESPOSTAS_MAXIMAS_SEM_SINAL = 10;
 const estado = {
   mensagens: [],   // { role: 'user' | 'assistant', content: string }
   saudacao: 'Olá! Qual lembrança você gostaria de contar?',
+  vozDisponivel: false,
+  frasePronto: 'criar meu livro',
+  modo: 'texto',   // 'voz' | 'texto'
   conversaPronta: false,
   roteiro: null,   // { titulo, tamanho, personagens, cenarios, paginas }
   paginas: [],     // [{ texto, imagem (PNG dataURL) | null }]
@@ -42,12 +45,17 @@ async function iniciar() {
   try {
     const cfg = await fetch('/api/config').then((r) => r.json());
     estado.saudacao = cfg.saudacao || estado.saudacao;
+    estado.vozDisponivel = Boolean(cfg.vozDisponivel);
+    estado.frasePronto = cfg.frasePronto || estado.frasePronto;
     $('aviso-demo').hidden = !cfg.modoDemo;
   } catch {
     /* sem problema: usa a saudação padrão */
   }
 
   $('btn-comecar').addEventListener('click', comecarConversa);
+  $('btn-instrucoes').addEventListener('click', () => irPara('tela-instrucoes'));
+  $('btn-comecar-instrucoes').addEventListener('click', comecarConversa);
+  $('btn-voltar-instrucoes').addEventListener('click', () => irPara('tela-inicio'));
   $('form-mensagem').addEventListener('submit', enviarMensagem);
   $('campo-texto').addEventListener('keydown', (e) => {
     // Enter envia; Shift+Enter quebra linha
@@ -56,7 +64,10 @@ async function iniciar() {
       $('form-mensagem').requestSubmit();
     }
   });
-  $('btn-criar').addEventListener('click', criarLivro);
+  $('btn-criar').addEventListener('click', async () => {
+    await encerrarVoz(); // fecha o microfone antes de gerar o livro
+    criarLivro();
+  });
   $('btn-tentar').addEventListener('click', criarLivro);
   $('btn-baixar').addEventListener('click', baixarPDF);
   $('btn-recomecar').addEventListener('click', recomecar);
@@ -64,12 +75,26 @@ async function iniciar() {
 
 // ---------- TELA 2 ----------
 function comecarConversa() {
-  estado.mensagens = [{ role: 'assistant', content: estado.saudacao }];
+  estado.mensagens = [];
   estado.conversaPronta = false;
   $('mensagens').innerHTML = '';
-  mostrarBalao('assistant', estado.saudacao);
   $('area-criar').hidden = true;
   irPara('tela-conversa');
+
+  if (estado.vozDisponivel) iniciarVoz();
+  else ativarModoTexto();
+}
+
+// Modo texto: usado no modo demo ou como plano B quando a voz falha
+function ativarModoTexto(motivo) {
+  estado.modo = 'texto';
+  $('painel-voz').hidden = true;
+  $('form-mensagem').hidden = false;
+  if (motivo) mostrarBalao('assistant', motivo);
+  if (!estado.mensagens.length) {
+    estado.mensagens.push({ role: 'assistant', content: estado.saudacao });
+    mostrarBalao('assistant', estado.saudacao);
+  }
   $('campo-texto').focus();
 }
 
@@ -79,6 +104,280 @@ function mostrarBalao(role, texto) {
   div.textContent = texto; // textContent evita injeção de HTML
   $('mensagens').appendChild(div);
   div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  return div;
+}
+
+// ============================================================
+//  VOZ (GPT-Live via WebRTC)
+//  Áudio vai e volta direto entre navegador e OpenAI.
+//  As transcrições chegam em pedaços (deltas) e viram falas
+//  no mesmo histórico usado pelo modo texto.
+// ============================================================
+const voz = {
+  pc: null,          // RTCPeerConnection
+  canal: null,       // data channel "oai-events"
+  microfone: null,   // MediaStream
+  audio: null,       // <audio> que toca a voz da IA
+  falaAtual: null,   // { role, texto, balao } — fala sendo transcrita agora
+  timerStatus: null,
+  ativa: false,
+  // Introdução: microfone bloqueado até a IA terminar a apresentação
+  microfoneLiberado: false,
+  introComecou: false,     // já ouvimos a IA falar?
+  ultimoSomIA: 0,          // quando ouvimos a IA pela última vez (ms)
+  contextoAudio: null,     // AudioContext para medir o volume da IA
+  timerIntro: null,        // garantia: libera o microfone de qualquer jeito
+  timerIntroTexto: null,   // plano B: libera pouco depois da última palavra da IA
+  timerVolume: null,
+};
+
+// Ajustes da liberação do microfone
+const SILENCIO_FIM_INTRO_MS = 1000;   // silêncio da IA que indica fim da apresentação
+const LIMITE_INTRO_MS = 20_000;        // nunca deixa a pessoa presa mais que isso
+const VOLUME_MINIMO = 0.02;            // abaixo disso consideramos silêncio
+
+const STATUS_VOZ = {
+  conectando: 'Conectando…',
+  bloqueado: 'Escute a assistente… 🔇',
+  ouvindo: 'Pode falar, estou ouvindo 😊',
+  'pessoa-falando': 'Estou ouvindo você…',
+  'ia-falando': 'Falando…',
+  encerrado: 'Conversa encerrada',
+};
+
+function statusVoz(estadoVoz) {
+  $('voz-circulo').className = `voz-circulo ${estadoVoz}`;
+  $('voz-status').textContent = STATUS_VOZ[estadoVoz];
+}
+
+// Depois de um tempo sem novas transcrições, volta para "ouvindo"
+function statusTemporario(estadoVoz) {
+  statusVoz(estadoVoz);
+  clearTimeout(voz.timerStatus);
+  voz.timerStatus = setTimeout(() => {
+    if (voz.ativa) statusVoz(voz.microfoneLiberado ? 'ouvindo' : 'bloqueado');
+  }, 1500);
+}
+
+// ---------- Introdução com microfone bloqueado ----------
+// Mede o volume da voz da IA. Quando ela fala e depois fica em silêncio
+// por SILENCIO_FIM_INTRO_MS, a apresentação acabou: liberamos o microfone.
+function monitorarFimDaIntro(streamIA) {
+  try {
+    voz.contextoAudio = new AudioContext();
+    voz.contextoAudio.resume().catch(() => {});
+    const fonte = voz.contextoAudio.createMediaStreamSource(streamIA);
+    const analisador = voz.contextoAudio.createAnalyser();
+    analisador.fftSize = 512;
+    fonte.connect(analisador); // não conecta à saída: o <audio> já toca o som
+    const amostras = new Float32Array(analisador.fftSize);
+
+    voz.timerVolume = setInterval(() => {
+      analisador.getFloatTimeDomainData(amostras);
+      const volume = Math.sqrt(amostras.reduce((s, x) => s + x * x, 0) / amostras.length);
+      const agora = Date.now();
+
+      if (volume > VOLUME_MINIMO) {
+        voz.introComecou = true;
+        voz.ultimoSomIA = agora;
+      } else if (voz.introComecou && agora - voz.ultimoSomIA > SILENCIO_FIM_INTRO_MS) {
+        liberarMicrofone();
+      }
+    }, 100);
+  } catch (erro) {
+    // Sem medição de volume: usa as transcrições da IA como plano B (ver tratarEventoVoz)
+    console.warn('Medição de volume indisponível:', erro);
+  }
+}
+
+function liberarMicrofone() {
+  if (voz.microfoneLiberado) return;
+  voz.microfoneLiberado = true;
+  clearInterval(voz.timerVolume);
+  clearTimeout(voz.timerIntro);
+  clearTimeout(voz.timerIntroTexto);
+  voz.microfone?.getAudioTracks().forEach((t) => { t.enabled = true; });
+  statusVoz('ouvindo');
+  tocarPlim();
+}
+
+// Som curto e suave avisando que o microfone ligou
+function tocarPlim() {
+  try {
+    const ctx = voz.contextoAudio || new AudioContext();
+    const osc = ctx.createOscillator();
+    const ganho = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(660, ctx.currentTime);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+    ganho.gain.setValueAtTime(0.0001, ctx.currentTime);
+    ganho.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.03);
+    ganho.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+    osc.connect(ganho).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch { /* som é só um extra */ }
+}
+
+async function iniciarVoz() {
+  estado.modo = 'voz';
+  $('form-mensagem').hidden = true;
+  $('painel-voz').hidden = false;
+  statusVoz('conectando');
+
+  try {
+    // 1. Microfone (com cancelamento de eco, para a IA não ouvir a si mesma)
+    voz.microfone = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    // Começa BLOQUEADO: a IA só recebe silêncio até terminar a apresentação
+    voz.microfone.getAudioTracks().forEach((t) => { t.enabled = false; });
+    Object.assign(voz, { microfoneLiberado: false, introComecou: false, ultimoSomIA: 0 });
+  } catch (erro) {
+    console.error(erro);
+    return ativarModoTexto(
+      'Não consegui usar o microfone. Sem problema: você pode escrever sua história aqui embaixo.'
+    );
+  }
+
+  try {
+    // 2. Conexão WebRTC
+    voz.pc = new RTCPeerConnection();
+    voz.audio = new Audio();
+    voz.audio.autoplay = true;
+    voz.pc.ontrack = (e) => {
+      voz.audio.srcObject = e.streams[0];
+      monitorarFimDaIntro(e.streams[0]);
+    };
+    voz.microfone.getTracks().forEach((t) => voz.pc.addTrack(t, voz.microfone));
+
+    // O canal de eventos precisa ser criado ANTES da oferta, com este nome
+    voz.canal = voz.pc.createDataChannel('oai-events');
+    voz.canal.addEventListener('message', (e) => tratarEventoVoz(JSON.parse(e.data)));
+
+    voz.pc.onconnectionstatechange = () => {
+      if (['failed', 'disconnected'].includes(voz.pc?.connectionState) && voz.ativa) {
+        encerrarVoz().then(() =>
+          ativarModoTexto('A ligação caiu. Você pode continuar escrevendo aqui embaixo.')
+        );
+      }
+    };
+
+    // 3. Oferta → nosso servidor → OpenAI → resposta
+    await voz.pc.setLocalDescription(await voz.pc.createOffer());
+    await esperarICE(voz.pc);
+    const resposta = await api('/api/voz/sessao', { sdp: voz.pc.localDescription.sdp });
+    await voz.pc.setRemoteDescription({ type: 'answer', sdp: resposta.sdp });
+  } catch (erro) {
+    console.error('Falha na voz:', erro);
+    await encerrarVoz();
+    ativarModoTexto('Não consegui ligar a conversa por voz agora. Você pode escrever sua história aqui embaixo.');
+  }
+}
+
+// Espera o navegador terminar de reunir os caminhos de rede (com limite de tempo)
+function esperarICE(pc) {
+  if (pc.iceGatheringState === 'complete') return Promise.resolve();
+  return new Promise((resolve) => {
+    const fim = () => { pc.removeEventListener('icegatheringstatechange', checar); resolve(); };
+    const checar = () => pc.iceGatheringState === 'complete' && fim();
+    pc.addEventListener('icegatheringstatechange', checar);
+    setTimeout(fim, 5000);
+  });
+}
+
+function tratarEventoVoz(evento) {
+  switch (evento.type) {
+    case 'session.started':
+      voz.ativa = true;
+      statusVoz('bloqueado');
+      // Garantia: se a IA não falar ou a medição falhar, libera mesmo assim
+      voz.timerIntro = setTimeout(liberarMicrofone, LIMITE_INTRO_MS);
+      break;
+
+    case 'session.input_transcript.delta':   // fala da pessoa
+      adicionarTrecho('user', evento.delta);
+      statusTemporario('pessoa-falando');
+      break;
+
+    case 'session.output_transcript.delta':  // fala da IA
+      adicionarTrecho('assistant', evento.delta);
+      statusTemporario('ia-falando');
+      // Plano B: se a medição de volume não funcionar neste navegador,
+      // libera 4s depois da última palavra transcrita da apresentação.
+      if (!voz.microfoneLiberado) {
+        clearTimeout(voz.timerIntroTexto);
+        voz.timerIntroTexto = setTimeout(liberarMicrofone, 4000);
+      }
+      break;
+
+    case 'session.closed':
+      voz.ativa = false;
+      break;
+
+    case 'error':
+      console.error('Erro na sessão de voz:', evento);
+      break;
+  }
+}
+
+// Junta os pedaços de transcrição em falas. Quando muda quem está falando,
+// a fala anterior é fechada e guardada no histórico.
+function adicionarTrecho(role, trecho) {
+  if (!trecho) return;
+  if (!voz.falaAtual || voz.falaAtual.role !== role) {
+    fecharFalaAtual();
+    voz.falaAtual = { role, texto: '', balao: mostrarBalao(role, '') };
+  }
+  voz.falaAtual.texto += trecho; // os pedaços já trazem os espaços certos
+  voz.falaAtual.balao.textContent = voz.falaAtual.texto;
+  voz.falaAtual.balao.scrollIntoView({ block: 'end' });
+}
+
+function fecharFalaAtual() {
+  const fala = voz.falaAtual;
+  voz.falaAtual = null;
+  if (!fala) return;
+
+  const texto = fala.texto.trim();
+  if (!texto) { fala.balao.remove(); return; }
+  estado.mensagens.push({ role: fala.role, content: texto });
+
+  // A IA avisa que a história está completa dizendo "Criar meu livro"
+  if (fala.role === 'assistant' && semAcentos(texto).includes(semAcentos(estado.frasePronto))) {
+    estado.conversaPronta = true;
+  }
+  atualizarBotaoCriar();
+}
+
+const semAcentos = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+// Encerra a ligação com educação (session.close) e libera o microfone
+async function encerrarVoz() {
+  fecharFalaAtual();
+  clearTimeout(voz.timerStatus);
+  clearTimeout(voz.timerIntro);
+  clearTimeout(voz.timerIntroTexto);
+  clearInterval(voz.timerVolume);
+  voz.contextoAudio?.close().catch(() => {});
+  voz.contextoAudio = null;
+
+  if (voz.canal?.readyState === 'open' && voz.ativa) {
+    voz.canal.send(JSON.stringify({ type: 'session.close' }));
+    // espera a confirmação por até 3 segundos
+    await new Promise((resolve) => {
+      const inicio = Date.now();
+      const checar = () => (!voz.ativa || Date.now() - inicio > 3000 ? resolve() : setTimeout(checar, 100));
+      checar();
+    });
+  }
+
+  voz.ativa = false;
+  voz.microfone?.getTracks().forEach((t) => t.stop());
+  voz.pc?.close();
+  if (voz.audio) voz.audio.srcObject = null;
+  Object.assign(voz, { pc: null, canal: null, microfone: null, audio: null });
+  if (estado.modo === 'voz') statusVoz('encerrado');
 }
 
 function definirOcupado(ocupado) {
@@ -318,7 +617,8 @@ function rodape(pdf, L, A) {
   pdf.setTextColor(0);
 }
 
-function recomecar() {
+async function recomecar() {
+  await encerrarVoz();
   estado.mensagens = [];
   estado.roteiro = null;
   estado.paginas = [];

@@ -8,8 +8,10 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from './src/env.js';
-import { responderConversa, criarRoteiro, criarIlustracao, normalizarRoteiro, modoDemo } from './src/ai.js';
-import { SAUDACAO } from './src/prompts.js';
+import {
+  responderConversa, criarSessaoVoz, criarRoteiro, criarIlustracao, normalizarRoteiro, modoDemo,
+} from './src/ai.js';
+import { SAUDACAO, FRASE_PRONTO } from './src/prompts.js';
 
 const RAIZ = path.dirname(fileURLToPath(import.meta.url));
 loadEnv(path.join(RAIZ, '.env'));
@@ -63,7 +65,20 @@ const servidor = http.createServer(async (req, res) => {
   try {
     // Saudação inicial e se está em modo demo
     if (req.method === 'GET' && req.url === '/api/config') {
-      return responderJSON(res, 200, { saudacao: SAUDACAO, modoDemo: modoDemo() });
+      return responderJSON(res, 200, {
+        saudacao: SAUDACAO,
+        modoDemo: modoDemo(),
+        vozDisponivel: !modoDemo(),
+        frasePronto: FRASE_PRONTO,
+      });
+    }
+
+    // Tela 2 (voz): troca a oferta WebRTC do navegador pela resposta da OpenAI
+    if (req.method === 'POST' && req.url === '/api/voz/sessao') {
+      const { sdp } = await lerCorpo(req, 200_000);
+      const sessao = await criarSessaoVoz(sdp);
+      console.log(`[voz] sessão iniciada ${sessao.id || ''}`);
+      return responderJSON(res, 201, sessao);
     }
 
     // Tela 2: próxima fala da IA → { resposta, pronto }
