@@ -138,8 +138,8 @@ const VOLUME_MINIMO = 0.02;            // abaixo disso consideramos silêncio
 
 const STATUS_VOZ = {
   conectando: 'Conectando…',
-  bloqueado: 'Escute a assistente… 🔇',
-  ouvindo: 'Pode falar, estou ouvindo 😊',
+  bloqueado: 'Escute a assistente…',
+  ouvindo: 'Pode falar, estou ouvindo',
   'pessoa-falando': 'Estou ouvindo você…',
   'ia-falando': 'Falando…',
   encerrado: 'Conversa encerrada',
