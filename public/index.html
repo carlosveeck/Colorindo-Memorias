@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Colorindo Memórias</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <!-- Biblioteca para gerar o PDF no próprio navegador -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
@@ -13,91 +14,103 @@
 </head>
 <body>
 
+  <!-- Ícones em traço de nanquim (reutilizados com <use>) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v4M8.5 21.5h7"/></symbol>
+    <symbol id="i-livro" viewBox="0 0 24 24"><path d="M12 6.5C10 4.8 7 4.3 3 4.5v14c4-.2 7 .3 9 2 2-1.7 5-2.2 9-2v-14c-4-.2-7 .3-9 2zM12 6.5v14"/></symbol>
+    <symbol id="i-voltar" viewBox="0 0 24 24"><path d="M19.5 12h-15M10.5 6l-6 6 6 6"/></symbol>
+    <symbol id="i-baixar" viewBox="0 0 24 24"><path d="M12 3.5v12M7 11l5 5 5-5M4 20.5h16"/></symbol>
+  </svg>
+
   <!-- ================= TELA 1: INÍCIO ================= -->
   <section id="tela-inicio" class="tela ativa" aria-label="Início">
     <div class="inicio-conteudo">
-      <div class="logo" aria-hidden="true">🖍️📖</div>
-      <h1>Colorindo Memórias</h1>
-      <p class="subtitulo">Conte uma lembrança especial.<br />Ela vira um livrinho para você colorir.</p>
-      <div class="botoes-inicio">
+      <h1 class="titulo-inicio">
+        <span class="colorido animado">Colorindo</span>
+        <span class="colorido animado">Memórias</span>
+      </h1>
+      <p class="subtitulo">
+        Conte uma lembrança especial da sua vida.
+        Ela vira um livrinho de desenhos para você colorir.
+      </p>
+      <div class="botoes">
         <button id="btn-comecar" class="botao botao-principal">
-          <span aria-hidden="true">💬</span> Contar minha história
+          <svg class="icone" aria-hidden="true"><use href="#i-mic"/></svg>
+          Contar minha história
         </button>
-        <button id="btn-instrucoes" class="botao botao-secundario">
-          <span aria-hidden="true">❓</span> Instruções
-        </button>
+        <button id="btn-instrucoes" class="botao botao-secundario">Como funciona</button>
       </div>
-      <p id="aviso-demo" class="aviso-demo" hidden>Modo demonstração (sem chave da IA)</p>
+      <p id="aviso-demo" class="aviso-demo" hidden>
+        Modo demonstração: as perguntas e o desenho são apenas exemplos.
+      </p>
     </div>
   </section>
 
   <!-- ================= INSTRUÇÕES ================= -->
-  <section id="tela-instrucoes" class="tela" aria-label="Instruções">
+  <section id="tela-instrucoes" class="tela" aria-label="Como funciona">
     <div class="instrucoes">
       <h2 class="instrucoes-titulo">Como funciona</h2>
       <p class="instrucoes-intro">
-        Você conta uma lembrança especial conversando com uma assistente.
-        No final, ela vira um livrinho com desenhos para você colorir.
+        Você conversa com uma assistente sobre uma lembrança.
+        No final, a conversa vira um livrinho com desenhos para colorir.
       </p>
 
       <ol class="passos">
         <li class="passo">
-          <span class="passo-icone" aria-hidden="true">💬</span>
+          <span class="passo-numero" aria-hidden="true">1</span>
           <div>
-            <h3>Toque em "Contar minha história"</h3>
-            <p>O aparelho vai pedir para usar o microfone. Toque em <strong>"Permitir"</strong>.</p>
+            <h3>Toque em “Contar minha história”</h3>
+            <p>O aparelho vai pedir para usar o microfone. Toque em <strong>Permitir</strong>.</p>
           </div>
         </li>
         <li class="passo">
-          <span class="passo-icone" aria-hidden="true">🎙️</span>
+          <span class="passo-numero" aria-hidden="true">2</span>
           <div>
             <h3>Converse com calma</h3>
             <p>
-              A assistente vai escutar você e fazer perguntas sobre a lembrança:
-              onde foi, quem estava junto e como você se sentiu.
+              A assistente pergunta onde foi, quem estava junto e como você se sentiu.
               Fale normalmente, como numa ligação. Tudo aparece escrito na tela.
             </p>
           </div>
         </li>
         <li class="passo">
-          <span class="passo-icone" aria-hidden="true">📖</span>
+          <span class="passo-numero" aria-hidden="true">3</span>
           <div>
-            <h3>Toque em "Criar meu livro"</h3>
-            <p>Quando a história estiver completa, a assistente vai avisar e o botão vai aparecer.</p>
+            <h3>Toque em “Criar meu livro”</h3>
+            <p>Quando a história estiver completa, a assistente avisa e o botão aparece.</p>
           </div>
         </li>
         <li class="passo">
-          <span class="passo-icone" aria-hidden="true">🎨</span>
+          <span class="passo-numero" aria-hidden="true">4</span>
           <div>
-            <h3>Aguarde os desenhos</h3>
-            <p>Em poucos minutos, sua história é escrita e ganha de 1 a 3 desenhos para colorir.</p>
+            <h3>Espere os desenhos</h3>
+            <p>Em poucos minutos, sua história é escrita e ganha de 1 a 3 desenhos.</p>
           </div>
         </li>
         <li class="passo">
-          <span class="passo-icone" aria-hidden="true">⬇️</span>
+          <span class="passo-numero" aria-hidden="true">5</span>
           <div>
-            <h3>Toque em "Baixar meu livro"</h3>
-            <p>O livro fica guardado no aparelho. Você pode imprimir e colorir quando quiser.</p>
+            <h3>Toque em “Baixar meu livro”</h3>
+            <p>O livro fica guardado no aparelho. Imprima e pinte quando quiser.</p>
           </div>
         </li>
       </ol>
 
       <div class="dicas">
-        <h3>💡 Dicas</h3>
+        <h3>Para a conversa sair melhor</h3>
         <ul>
-          <li>Prefira um lugar silencioso.</li>
-          <li>Com fone de ouvido, a conversa fica ainda melhor.</li>
-          <li>Se o microfone não funcionar, você pode escrever a sua história.</li>
+          <li>Escolha um lugar silencioso.</li>
+          <li>Com fone de ouvido, a assistente escuta você com mais clareza.</li>
+          <li>Se o microfone não funcionar, você pode escrever a história.</li>
         </ul>
       </div>
 
-      <div class="botoes-inicio">
+      <div class="botoes">
         <button id="btn-comecar-instrucoes" class="botao botao-principal">
-          <span aria-hidden="true">💬</span> Contar minha história
+          <svg class="icone" aria-hidden="true"><use href="#i-mic"/></svg>
+          Contar minha história
         </button>
-        <button id="btn-voltar-instrucoes" class="botao botao-secundario">
-          <span aria-hidden="true">⬅️</span> Voltar
-        </button>
+        <button id="btn-voltar-instrucoes" class="botao botao-secundario">Voltar ao início</button>
       </div>
     </div>
   </section>
@@ -105,14 +118,23 @@
   <!-- ================= TELA 2: CONVERSA ================= -->
   <section id="tela-conversa" class="tela" aria-label="Conversa">
     <header class="topo">
-      <h2>Conte sua história</h2>
+      <div class="topo-conteudo">
+        <!-- Se a pessoa já contou algo, o 1º toque pede confirmação (sem modal) -->
+        <button id="btn-voltar-conversa" class="botao botao-secundario botao-voltar">
+          <svg class="icone" aria-hidden="true"><use href="#i-voltar"/></svg>
+          <span id="btn-voltar-rotulo">Voltar ao início</span>
+        </button>
+        <h2>Conte sua história</h2>
+      </div>
     </header>
 
     <div id="mensagens" class="mensagens" aria-live="polite"></div>
 
     <!-- Modo voz: indicador grande do que está acontecendo -->
     <div id="painel-voz" class="painel-voz" hidden aria-live="polite">
-      <div id="voz-circulo" class="voz-circulo conectando" aria-hidden="true">🎙️</div>
+      <div id="voz-circulo" class="voz-circulo conectando" aria-hidden="true">
+        <svg class="icone"><use href="#i-mic"/></svg>
+      </div>
       <p id="voz-status" class="voz-status">Conectando…</p>
     </div>
 
@@ -124,14 +146,13 @@
     <form id="form-mensagem" class="area-escrever" hidden>
       <label for="campo-texto" class="sr-only">Escreva sua resposta</label>
       <textarea id="campo-texto" rows="2" placeholder="Escreva aqui…" autocomplete="off"></textarea>
-      <button type="submit" id="btn-enviar" class="botao botao-enviar">
-        <span aria-hidden="true">➤</span> Enviar
-      </button>
+      <button type="submit" id="btn-enviar" class="botao botao-enviar">Enviar</button>
     </form>
 
     <div id="area-criar" class="area-criar" hidden>
       <button id="btn-criar" class="botao botao-principal">
-        <span aria-hidden="true">📖</span> Criar meu livro
+        <svg class="icone" aria-hidden="true"><use href="#i-livro"/></svg>
+        Criar meu livro
       </button>
     </div>
   </section>
@@ -141,34 +162,32 @@
 
     <!-- Estado: gerando -->
     <div id="livro-carregando" class="carregando">
-      <div class="pincel" aria-hidden="true">🎨</div>
+      <svg class="rabisco" viewBox="0 0 240 80" aria-hidden="true">
+        <path d="M10 55 C 35 10, 55 10, 70 40 S 105 75, 125 40 S 160 5, 180 35 S 215 70, 230 25" />
+      </svg>
       <p id="progresso-titulo" class="carregando-titulo">Organizando sua história…</p>
-      <p class="carregando-sub">Cada página leva cerca de um minuto. Pode aguardar com calma.</p>
+      <p class="carregando-sub">Cada página leva cerca de um minuto. Deixe esta tela aberta e espere com calma.</p>
       <div class="barra"><div id="barra" class="barra-preenchimento indeterminada"></div></div>
     </div>
 
     <!-- Estado: erro -->
     <div id="livro-erro" class="carregando" hidden>
-      <div class="pincel" aria-hidden="true">😔</div>
-      <p class="carregando-titulo">Não conseguimos criar o livro agora.</p>
-      <p class="carregando-sub">Sua história continua guardada. Vamos tentar de novo?</p>
-      <button id="btn-tentar" class="botao botao-principal">
-        <span aria-hidden="true">🔄</span> Tentar de novo
-      </button>
+      <p class="carregando-titulo">O livro não foi criado desta vez.</p>
+      <p class="carregando-sub">A conversa continua guardada. Toque em “Tentar de novo” para criar o livro com ela.</p>
+      <button id="btn-tentar" class="botao botao-principal">Tentar de novo</button>
     </div>
 
     <!-- Estado: pronto -->
     <div id="livro-pronto" class="livro-pronto" hidden>
-      <h2 id="livro-titulo" class="livro-titulo"></h2>
+      <h2 id="livro-titulo" class="livro-titulo colorido"></h2>
       <!-- As páginas (desenho + texto) são montadas pelo app.js -->
       <div id="livro-paginas"></div>
-      <div class="acoes-finais">
+      <div class="botoes acoes-finais">
         <button id="btn-baixar" class="botao botao-principal">
-          <span aria-hidden="true">⬇️</span> Baixar meu livro
+          <svg class="icone" aria-hidden="true"><use href="#i-baixar"/></svg>
+          Baixar meu livro
         </button>
-        <button id="btn-recomecar" class="botao botao-secundario">
-          <span aria-hidden="true">🏠</span> Contar outra história
-        </button>
+        <button id="btn-recomecar" class="botao botao-secundario">Contar outra história</button>
       </div>
     </div>
   </section>
