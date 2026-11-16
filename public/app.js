@@ -17,6 +17,7 @@ const estado = {
   roteiro: null,   // { titulo, tamanho, personagens, cenarios, paginas }
   paginas: [],     // [{ texto, imagem (PNG dataURL) | null }]
   ocupado: false,
+  idConversa: 0,   // muda a cada conversa nova ou saída; evita "voz fantasma"
 };
 
 const $ = (id) => document.getElementById(id);
@@ -71,10 +72,40 @@ async function iniciar() {
   $('btn-tentar').addEventListener('click', criarLivro);
   $('btn-baixar').addEventListener('click', baixarPDF);
   $('btn-recomecar').addEventListener('click', recomecar);
+  $('btn-voltar-conversa').addEventListener('click', voltarDaConversa);
+}
+
+// ---------- Voltar da conversa para o início ----------
+// Sem modal: se a pessoa já contou algo, o 1º toque só pede confirmação
+// no próprio botão ("Toque de novo para sair"). Se ela não tocar de novo
+// em 5 segundos, o botão volta ao normal e nada se perde.
+let timerConfirmarVolta = null;
+
+function resetarBotaoVoltar() {
+  clearTimeout(timerConfirmarVolta);
+  timerConfirmarVolta = null;
+  $('btn-voltar-conversa').classList.remove('confirmar');
+  $('btn-voltar-rotulo').textContent = 'Voltar ao início';
+}
+
+async function voltarDaConversa() {
+  const jaContouAlgo = estado.mensagens.some((m) => m.role === 'user');
+
+  if (jaContouAlgo && !timerConfirmarVolta) {
+    $('btn-voltar-conversa').classList.add('confirmar');
+    $('btn-voltar-rotulo').textContent = 'Toque de novo para sair';
+    timerConfirmarVolta = setTimeout(resetarBotaoVoltar, 5000);
+    return;
+  }
+
+  resetarBotaoVoltar();
+  await recomecar(); // fecha o microfone, limpa a conversa e volta ao início
 }
 
 // ---------- TELA 2 ----------
 function comecarConversa() {
+  estado.idConversa++;
+  resetarBotaoVoltar();
   estado.mensagens = [];
   estado.conversaPronta = false;
   $('mensagens').innerHTML = '';
@@ -220,6 +251,9 @@ function tocarPlim() {
 }
 
 async function iniciarVoz() {
+  const minhaConversa = estado.idConversa;
+  // A pessoa saiu (ou recomeçou) enquanto a conexão abria? Então desiste.
+  const desistiu = () => estado.idConversa !== minhaConversa;
   estado.modo = 'voz';
   $('form-mensagem').hidden = true;
   $('painel-voz').hidden = false;
@@ -233,8 +267,10 @@ async function iniciarVoz() {
     // Começa BLOQUEADO: a IA só recebe silêncio até terminar a apresentação
     voz.microfone.getAudioTracks().forEach((t) => { t.enabled = false; });
     Object.assign(voz, { microfoneLiberado: false, introComecou: false, ultimoSomIA: 0 });
+    if (desistiu()) return encerrarVoz();
   } catch (erro) {
     console.error(erro);
+    if (desistiu()) return;
     return ativarModoTexto(
       'Não consegui usar o microfone. Sem problema: você pode escrever sua história aqui embaixo.'
     );
@@ -267,10 +303,12 @@ async function iniciarVoz() {
     await voz.pc.setLocalDescription(await voz.pc.createOffer());
     await esperarICE(voz.pc);
     const resposta = await api('/api/voz/sessao', { sdp: voz.pc.localDescription.sdp });
+    if (desistiu()) return encerrarVoz();
     await voz.pc.setRemoteDescription({ type: 'answer', sdp: resposta.sdp });
   } catch (erro) {
     console.error('Falha na voz:', erro);
     await encerrarVoz();
+    if (desistiu()) return;
     ativarModoTexto('Não consegui ligar a conversa por voz agora. Você pode escrever sua história aqui embaixo.');
   }
 }
@@ -618,6 +656,7 @@ function rodape(pdf, L, A) {
 }
 
 async function recomecar() {
+  estado.idConversa++; // invalida qualquer conexão de voz que ainda esteja abrindo
   await encerrarVoz();
   estado.mensagens = [];
   estado.roteiro = null;

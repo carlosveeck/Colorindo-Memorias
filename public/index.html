@@ -18,6 +18,7 @@
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v4M8.5 21.5h7"/></symbol>
     <symbol id="i-livro" viewBox="0 0 24 24"><path d="M12 6.5C10 4.8 7 4.3 3 4.5v14c4-.2 7 .3 9 2 2-1.7 5-2.2 9-2v-14c-4-.2-7 .3-9 2zM12 6.5v14"/></symbol>
+    <symbol id="i-voltar" viewBox="0 0 24 24"><path d="M19.5 12h-15M10.5 6l-6 6 6 6"/></symbol>
     <symbol id="i-baixar" viewBox="0 0 24 24"><path d="M12 3.5v12M7 11l5 5 5-5M4 20.5h16"/></symbol>
   </svg>
 
@@ -117,7 +118,14 @@
   <!-- ================= TELA 2: CONVERSA ================= -->
   <section id="tela-conversa" class="tela" aria-label="Conversa">
     <header class="topo">
-      <h2>Conte sua história</h2>
+      <div class="topo-conteudo">
+        <!-- Se a pessoa já contou algo, o 1º toque pede confirmação (sem modal) -->
+        <button id="btn-voltar-conversa" class="botao botao-secundario botao-voltar">
+          <svg class="icone" aria-hidden="true"><use href="#i-voltar"/></svg>
+          <span id="btn-voltar-rotulo">Voltar ao início</span>
+        </button>
+        <h2>Conte sua história</h2>
+      </div>
     </header>
 
     <div id="mensagens" class="mensagens" aria-live="polite"></div>

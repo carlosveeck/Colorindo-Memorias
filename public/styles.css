@@ -132,7 +132,15 @@ h1, h2, h3 { font-family: var(--display); font-weight: 800; line-height: 1.1; ma
 
 /* ---------- Tela 1: início ---------- */
 #tela-inicio { justify-content: center; padding: 40px 28px; overflow-y: auto; }
-.inicio-conteudo { width: 100%; max-width: 760px; margin: 0 auto; }
+/* Tudo centralizado: título, texto, botões e aviso no mesmo eixo */
+.inicio-conteudo {
+  width: 100%; max-width: 760px; margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center;
+}
+.titulo-inicio { display: flex; flex-direction: column; align-items: center; }
+.inicio-conteudo .subtitulo { margin-left: auto; margin-right: auto; }
+.inicio-conteudo .botoes { align-items: center; width: 100%; }
 
 .titulo-inicio {
   font-size: clamp(60px, 13vw, 124px);
@@ -156,6 +164,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 800; line-height: 1.1; ma
   border: 2px dashed var(--guia);
   border-radius: 999px;
 }
+.aviso-demo[hidden] { display: none; }
 
 /* ---------- Instruções ---------- */
 #tela-instrucoes { overflow-y: auto; padding: 48px 28px; }
@@ -199,8 +208,16 @@ h1, h2, h3 { font-family: var(--display); font-weight: 800; line-height: 1.1; ma
 .dicas li { margin: 6px 0; }
 
 /* ---------- Tela 2: conversa ---------- */
-.topo { border-bottom: 2px dashed var(--guia); padding: 20px 28px; }
-.topo h2 { max-width: 900px; margin: 0 auto; font-size: var(--t-3); font-weight: 700; }
+.topo { border-bottom: 2px dashed var(--guia); padding: 16px 28px; }
+.topo-conteudo {
+  max-width: 900px; margin: 0 auto;
+  display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+}
+.topo h2 { margin: 0; font-size: var(--t-3); font-weight: 700; }
+.botao-voltar { padding: 12px 28px; font-size: var(--t-0); }
+/* 1º toque com história em andamento: botão fica amarelo pedindo confirmação */
+.botao-voltar.confirmar,
+.botao-voltar.confirmar:hover { background: var(--amarelo); }
 
 .mensagens {
   flex: 1;
@@ -243,7 +260,8 @@ h1, h2, h3 { font-family: var(--display); font-weight: 800; line-height: 1.1; ma
   gap: 16px;
   align-items: stretch;
   width: 100%;
-  padding: 18px 28px;
+  /* linha tracejada ocupa a tela toda, mas o conteúdo fica alinhado às mensagens (900px) */
+  padding: 18px max(28px, calc((100% - 900px) / 2 + 28px));
   border-top: 2px dashed var(--guia);
 }
 .area-escrever[hidden] { display: none; }
@@ -377,6 +395,9 @@ h1, h2, h3 { font-family: var(--display); font-weight: 800; line-height: 1.1; ma
   .passo-numero { font-size: 52px; }
   .area-escrever { flex-direction: column; padding: 14px 20px; }
   .mensagens { padding: 20px; }
+  .topo { padding: 14px 20px; }
+  .topo-conteudo { gap: 12px; }
+  .botao-voltar { width: 100%; }
   .painel-voz { gap: 16px; }
   .voz-circulo { width: 84px; height: 84px; }
 }
